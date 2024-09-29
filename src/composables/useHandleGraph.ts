@@ -20,6 +20,11 @@ const useGraph = () => {
   const nodes = reactive<GraphNode[]>([])
   const edges = reactive<Edge[]>([])
   const currentId = ref(1)
+  const edgeDistances = {
+    'both-ways': 50 ** 2,
+    'one-way': 10 ** 2,
+    'undirected': 10 ** 2
+  }
 
   const addNode = (x: number, y: number) => {
     const id = currentId.value++
@@ -30,6 +35,10 @@ const useGraph = () => {
         connectedNodes: new Set()
       })
     }
+  }
+
+  const getEdgeId = (fromId: number, toId: number) => {
+    return `${fromId}-${toId}`
   }
 
   const addEdge = (fromId: number, toId: number, directionType: DirectionType) => {
@@ -51,7 +60,7 @@ const useGraph = () => {
         fromNode.connectedNodes.add(toNode)
       }
       const newEdge: Edge = {
-        id: `${fromId}-${toId}`,
+        id: getEdgeId(fromId, toId),
         from: fromNode,
         to: toNode,
         weight: 1,
@@ -89,8 +98,8 @@ const useGraph = () => {
 
   const deleteEdge = (fromId: number, toId: number) => {
     const edgeIndex = edges.findIndex(edge => (
-      (edge.from.id === fromId && edge.to.id === toId) ||
-      (edge.from.id === toId && edge.to.id === fromId)
+      getEdgeId(fromId, toId) === edge.id ||
+      getEdgeId(toId, fromId) === edge.id
     ))
 
     if (edgeIndex === -1) return
@@ -103,11 +112,13 @@ const useGraph = () => {
     edges.splice(edgeIndex, 1)
   }
 
-  const updateEdgeType = (fromId: number, toId: number, newType: 'one-way' | 'both-ways' | 'undirected') => {
+  const updateEdgeType = (fromId: number, toId: number, currentEdgeType: DirectionType) => {
     const edge = edges.find(edge => (
-      (edge.from.id === fromId && edge.to.id === toId) ||
-      (edge.from.id === toId && edge.to.id === fromId)
+      getEdgeId(fromId, toId) === edge.id ||
+      getEdgeId(toId, fromId) === edge.id
     ))
+
+    const newType = currentEdgeType === 'both-ways' ? 'one-way' : (currentEdgeType === 'one-way' ? 'undirected' : 'both-ways')
 
     if (edge) {
       if (newType === 'one-way') {
@@ -128,6 +139,7 @@ const useGraph = () => {
   return {
     nodes: getNodes,
     edges: getEdges,
+    edgeDistances,
     addNode,
     addEdge,
     deleteNode,

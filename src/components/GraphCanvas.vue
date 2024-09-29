@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import useGraph from '../composables/useHandleGraph'
 
-const { nodes, edges, addNode, addEdge, deleteNode } = useGraph()
+const { nodes, edges, edgeDistances, addNode, addEdge, deleteNode, updateEdgeType } = useGraph()
 
 const nodeRadius = 50
 
@@ -142,6 +142,44 @@ const animate = () => {
   requestAnimationFrame(animate)
 }
 
+const distanceToLineSquared = (x1: number, y1: number, x2: number, y2: number, px: number, py: number) => {
+  const A = px - x1
+  const B = py - y1
+  const C = x2 - x1
+  const D = y2 - y1
+
+  const dot = A * C + B * D
+  const len_sq = C * C + D * D
+  const param = len_sq !== 0 ? dot / len_sq : -1
+
+  let nearestX, nearestY
+
+  if (param < 0) {
+    nearestX = x1
+    nearestY = y1
+  } else if (param > 1) {
+    nearestX = x2
+    nearestY = y2
+  } else {
+    nearestX = x1 + param * C
+    nearestY = y1 + param * D
+  }
+
+  const dx = px - nearestX
+  const dy = py - nearestY
+  return dx * dx + dy * dy
+}
+
+const timeoutIsActive = ref(false)
+
+const startTimeout = () => {
+  timeoutIsActive.value = true
+
+  setTimeout(() => {
+    timeoutIsActive.value = false
+  }, 300)
+}
+
 const onMouseDown = (event: MouseEvent) => {
   const mouseX = event.offsetX
   const mouseY = event.offsetY
@@ -149,12 +187,21 @@ const onMouseDown = (event: MouseEvent) => {
   nodes.value.forEach(node => {
     const dx = mouseX - node.position.x
     const dy = mouseY - node.position.y
-    if (Math.sqrt(dx * dx + dy * dy) < 50) { 
+    if ((dx * dx + dy * dy) < 2500) { 
       isDragging.value = true
       draggedNode.value = node
       offset.value = { x: dx, y: dy } 
     }
   })
+
+  if (!isDragging.value) {
+    edges.value.forEach(edge => {
+      if (distanceToLineSquared(edge.from.position.x, edge.from.position.y, edge.to.position.x, edge.to.position.y, mouseX, mouseY) < edgeDistances[edge.directionType]) {
+        updateEdgeType(edge.from.id, edge.to.id, edge.directionType)
+        startTimeout()
+      }
+    })
+  }
 }
 
 const onMouseMove = (event: MouseEvent) => {
@@ -177,12 +224,12 @@ const onDoubleClick = (event: MouseEvent) => {
   const nodeIndex = nodes.value.findIndex(node => {
     const dx = mouseX - node.position.x
     const dy = mouseY - node.position.y
-    return Math.sqrt(dx * dx + dy * dy) < 50
+    return dx * dx + dy * dy < 50 ** 2
   })
 
   if (nodeIndex !== -1) {
     deleteNode(nodes.value[nodeIndex].id)
-  } else {
+  } else if (!timeoutIsActive.value) {
     addNode(mouseX, mouseY)
   }
 }
