@@ -22,9 +22,38 @@ addEdge(2, 1, 'undirected')
 
 const isDragging = ref(false)
 const draggedNode = ref<GraphNode | null>(null)
+const hoveredNode = ref<GraphNode | null>(null)
 const offset = ref({ x: 0, y: 0 })
 
 const canvas = ref<HTMLCanvasElement | null>(null)
+
+const drawMiniNodes = (ctx: CanvasRenderingContext2D, originX: number, originY: number) => {
+  const miniNodeOffsets = [
+    {
+      x: 0,
+      y: -nodeRadius
+    },
+    {
+      x: nodeRadius,
+      y: 0
+    },
+    {
+      x: 0,
+      y: nodeRadius
+    },
+    {
+      x: -nodeRadius,
+      y: 0
+    },
+  ]
+  miniNodeOffsets.forEach(miniNode => {
+    ctx.beginPath()
+    ctx.arc(originX + miniNode.x, originY + miniNode.y, 10, 0, Math.PI * 2)
+    ctx.fillStyle = 'black'
+    ctx.fill()
+    ctx.closePath()
+  })
+}
 
 const draw = (ctx: CanvasRenderingContext2D) => {
   const width = canvas.value!.width
@@ -131,13 +160,16 @@ const draw = (ctx: CanvasRenderingContext2D) => {
     ctx.font = 'italic 20px Arial'
     ctx.fillText(`${node.id}`, node.position.x  - 5, node.position.y + 5)
   })
+
+  if (hoveredNode.value) {
+    drawMiniNodes(ctx, hoveredNode.value.position.x, hoveredNode.value.position.y)
+  }
 }
 
 const animate = () => {
-  if (canvas.value) {
-    const ctx = canvas.value.getContext('2d')
-    if (ctx) draw(ctx)
-  }
+  const canvasContext = canvas.value?.getContext('2d')
+
+  if (canvasContext) draw(canvasContext)
 
   requestAnimationFrame(animate)
 }
@@ -205,11 +237,25 @@ const onMouseDown = (event: MouseEvent) => {
 }
 
 const onMouseMove = (event: MouseEvent) => {
+  const mouseX = event.offsetX
+  const mouseY = event.offsetY
+
   if (isDragging.value && draggedNode.value) {
-    const mouseX = event.offsetX
-    const mouseY = event.offsetY
     draggedNode.value.position.x = mouseX - offset.value.x 
     draggedNode.value.position.y = mouseY - offset.value.y
+  }
+
+  const nodeIndex = nodes.value.findIndex(node => {
+    const dx = mouseX - node.position.x
+    const dy = mouseY - node.position.y
+    return dx * dx + dy * dy < 50 ** 2
+    
+  })
+
+  if (nodeIndex !== -1) {
+    hoveredNode.value = nodes.value[nodeIndex]
+  } else {
+    hoveredNode.value = null
   }
 }
 
@@ -236,6 +282,7 @@ const onDoubleClick = (event: MouseEvent) => {
 
 onMounted(() => {
   animate()
+
   if (canvas.value) {
     canvas.value.addEventListener('mousedown', onMouseDown)
     canvas.value.addEventListener('mousemove', onMouseMove)
