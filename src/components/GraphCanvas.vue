@@ -2,8 +2,6 @@
 import { ref, onMounted } from 'vue'
 import useGraph from '../composables/useHandleGraph'
 
-const { nodes, edges, edgeDistances, addNode, addEdge, deleteNode, deleteEdge, updateEdgeType } = useGraph()
-
 const nodeRadius = 50
 const miniNodeRadius = 10
 
@@ -32,26 +30,19 @@ interface GraphNode {
   connectedNodes: Set<GraphNode>
 }
 
-addNode(100, 100)
-addNode(500, 100)
-addNode(400, 900)
-
-addEdge(2, 3, 'one-way')
-addEdge(1, 3, 'both-ways')
-addEdge(2, 1, 'undirected')
-
-const hoveredMiniNode = ref<{ x: number, y: number, fromNode: GraphNode } | null>(null)
-const draggedMiniNode = ref<{ x: number, y: number } | null>(null)
 const isDragging = ref(false)
 const draggedNode = ref<GraphNode | null>(null)
 const hoveredNode = ref<GraphNode | null>(null)
-const offset = ref({ x: 0, y: 0 })
+const draggingMiniNode = ref(false)
+const draggingMiniNodeData = ref<{ origin: GraphNode, mousePosition: { x: number, y: number } } | null>(null)
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 
+const { nodes, edges, edgeDistances, addNode, addEdge, deleteNode, deleteEdge, updateEdgeType } = useGraph(canvas.value)
+
 const drawMiniNodes = (ctx: CanvasRenderingContext2D, originX: number, originY: number) => {
 
-  if (draggedMiniNode.value) return
+  if (draggingMiniNode.value) return
 
   Object.values(miniNodeOffsets).forEach(miniNode => {
     ctx.beginPath()
@@ -157,10 +148,10 @@ const draw = (ctx: CanvasRenderingContext2D) => {
   const height = canvas.value!.height
   ctx.clearRect(0, 0, width, height)
 
-  if (draggedMiniNode.value && hoveredMiniNode.value) {
+  if (draggingMiniNode.value) {
     ctx.beginPath()
-    ctx.moveTo(hoveredMiniNode.value.x, hoveredMiniNode.value.y)
-    ctx.lineTo(draggedMiniNode.value.x, draggedMiniNode.value.y)
+    ctx.moveTo(draggingMiniNodeData.value!.origin.position.x, draggingMiniNodeData.value!.origin.position.y)
+    ctx.lineTo(draggingMiniNodeData.value!.mousePosition.x, draggingMiniNodeData.value!.mousePosition.y)
     ctx.strokeStyle = 'black'
     ctx.lineWidth = 10
     ctx.stroke()
@@ -233,14 +224,51 @@ const startTimeout = () => {
   }, 300)
 }
 
+const checkHoverMiniNodes = (mouseX: number, mouseY: number) => {
+  let topNode, bottomNode, leftNode, rightNode
+  if (hoveredNode.value && !draggingMiniNode.value) {
+    topNode =
+      mouseY >= hoveredNode.value.position.y - nodeRadius - miniNodeRadius &&
+      mouseY <= hoveredNode.value.position.y - nodeRadius + miniNodeRadius &&
+      mouseX >= hoveredNode.value.position.x - miniNodeRadius &&
+      mouseX <= hoveredNode.value.position.x + nodeRadius
+
+    bottomNode =
+      mouseY >= hoveredNode.value.position.y + nodeRadius - miniNodeRadius &&
+      mouseY <= hoveredNode.value.position.y + nodeRadius + miniNodeRadius &&
+      mouseX >= hoveredNode.value.position.x - miniNodeRadius &&
+      mouseX <= hoveredNode.value.position.x + miniNodeRadius
+
+    leftNode =
+      mouseY >= hoveredNode.value.position.y - miniNodeRadius &&
+      mouseY <= hoveredNode.value.position.y + miniNodeRadius &&
+      mouseX >= hoveredNode.value.position.x - nodeRadius - miniNodeRadius &&
+      mouseX <= hoveredNode.value.position.x - nodeRadius + miniNodeRadius
+
+    rightNode =
+      mouseY >= hoveredNode.value.position.y - miniNodeRadius &&
+      mouseY <= hoveredNode.value.position.y + miniNodeRadius &&
+      mouseX >= hoveredNode.value.position.x + nodeRadius - miniNodeRadius &&
+      mouseX <= hoveredNode.value.position.x + nodeRadius + miniNodeRadius
+  }
+
+  return topNode || bottomNode || leftNode || rightNode
+}
+
 const onMouseDown = (event: MouseEvent) => {
   const mouseX = event.offsetX
   const mouseY = event.offsetY
 
-  if (hoveredMiniNode.value) {
-    draggedMiniNode.value = {
-      x: mouseX,
-      y: mouseY
+  const hoveringMiniNodes = checkHoverMiniNodes(mouseX, mouseY)
+
+  if (hoveringMiniNodes) {
+    draggingMiniNode.value = true
+    draggingMiniNodeData.value = {
+      origin: hoveredNode.value!,
+      mousePosition: {
+        x: mouseX,
+        y: mouseY
+      }
     }
   } else {
     nodes.value.forEach(node => {
@@ -249,7 +277,6 @@ const onMouseDown = (event: MouseEvent) => {
       if ((dx * dx + dy * dy) < 2500) {
         isDragging.value = true
         draggedNode.value = node
-        offset.value = { x: dx, y: dy }
       }
     })
   }
@@ -260,8 +287,8 @@ const onMouseMove = (event: MouseEvent) => {
   const mouseX = event.offsetX
   const mouseY = event.offsetY
 
-  if (draggedMiniNode.value) {
-    draggedMiniNode.value = {
+  if (draggingMiniNode.value) {
+    draggingMiniNodeData.value!.mousePosition = {
       x: mouseX,
       y: mouseY
     }
@@ -275,61 +302,37 @@ const onMouseMove = (event: MouseEvent) => {
     return distanceSquared < nodeRadius ** 2
   })
 
-  let topNode, bottomNode, leftNode, rightNode
-  if (hoveredNode.value && !draggedMiniNode.value) {
-    topNode =
-      mouseY >= hoveredNode.value.position.y - nodeRadius - miniNodeRadius &&
-      mouseY <= hoveredNode.value.position.y - nodeRadius + miniNodeRadius &&
-      mouseX >= hoveredNode.value.position.x - miniNodeRadius &&
-      mouseX <= hoveredNode.value.position.x + nodeRadius
-  
-    bottomNode =
-      mouseY >= hoveredNode.value.position.y + nodeRadius - miniNodeRadius &&
-      mouseY <= hoveredNode.value.position.y + nodeRadius + miniNodeRadius &&
-      mouseX >= hoveredNode.value.position.x - miniNodeRadius &&
-      mouseX <= hoveredNode.value.position.x + miniNodeRadius
-  
-    leftNode =
-      mouseY >= hoveredNode.value.position.y - miniNodeRadius &&
-      mouseY <= hoveredNode.value.position.y + miniNodeRadius &&
-      mouseX >= hoveredNode.value.position.x - nodeRadius - miniNodeRadius &&
-      mouseX <= hoveredNode.value.position.x - nodeRadius + miniNodeRadius
-  
-    rightNode =
-      mouseY >= hoveredNode.value.position.y - miniNodeRadius &&
-      mouseY <= hoveredNode.value.position.y + miniNodeRadius &&
-      mouseX >= hoveredNode.value.position.x + nodeRadius - miniNodeRadius &&
-      mouseX <= hoveredNode.value.position.x + nodeRadius + miniNodeRadius
-  }
+  const hoveringMiniNodes = checkHoverMiniNodes(mouseX, mouseY)
 
-  if (topNode || bottomNode || leftNode || rightNode) {
-      hoveredMiniNode.value = { x: hoveredNode.value!.position.x, y: hoveredNode.value!.position.y, fromNode: hoveredNode.value! }
-  } else if (nodeIndex !== -1) {
-      hoveredNode.value = nodes.value[nodeIndex]
+  if (nodeIndex !== -1) {
+    hoveredNode.value = nodes.value[nodeIndex]
+  
+  } else if (hoveringMiniNodes) {
+
   } else {
-    if (!draggedMiniNode.value) {
+    if (!draggingMiniNode.value) {
       hoveredNode.value = null
-      hoveredMiniNode.value = null
+      draggingMiniNodeData.value = null
     }
   }
 
   if (isDragging.value && draggedNode.value) {
-    draggedNode.value.position.x = mouseX - offset.value.x
-    draggedNode.value.position.y = mouseY - offset.value.y
+    draggedNode.value.position.x = mouseX
+    draggedNode.value.position.y = mouseY
   }
 }
 
 const onMouseUp = (event: MouseEvent) => {
   const mouseX = event.offsetX
   const mouseY = event.offsetY
-  if (!isDragging.value && !draggedMiniNode.value) {
+  if (!isDragging.value && !draggingMiniNode.value) {
     edges.value.forEach(edge => {
       if (distanceToLineSquared(edge.from.position.x, edge.from.position.y, edge.to.position.x, edge.to.position.y, mouseX, mouseY) < edgeDistances[edge.directionType]) {
         updateEdgeType(edge.from.id, edge.to.id, edge.directionType)
         startTimeout()
       }
     })
-  } else if (!isDragging.value && draggedMiniNode.value && hoveredMiniNode.value) {
+  } else if (!isDragging.value && draggingMiniNode.value) {
     const nodeIndex = nodes.value.findIndex(node => {
       const dx = mouseX - node.position.x
       const dy = mouseY - node.position.y
@@ -338,14 +341,14 @@ const onMouseUp = (event: MouseEvent) => {
       return distanceSquared < nodeRadius ** 2
     })
 
-    if (nodeIndex !== -1 && hoveredMiniNode.value.fromNode)
-    addEdge(hoveredMiniNode.value.fromNode.id, nodes.value[nodeIndex].id, 'undirected')
+    if (nodeIndex !== -1)
+    addEdge(draggingMiniNodeData.value!.origin.id, nodes.value[nodeIndex].id, 'undirected')
   }
 
   isDragging.value = false
   draggedNode.value = null
-  draggedMiniNode.value = null
-  hoveredMiniNode.value = null
+  draggingMiniNode.value = false
+  draggingMiniNodeData.value = null
 }
 
 const onDoubleClick = (event: MouseEvent) => {
@@ -362,7 +365,7 @@ const onDoubleClick = (event: MouseEvent) => {
     hoveredNode.value = null
   } else if (!timeoutIsActive.value) {
     addNode(mouseX, mouseY)
-  } else if (!isDragging.value && !draggedMiniNode.value) {
+  } else if (!isDragging.value && !draggingMiniNode.value) {
     edges.value.forEach(edge => {
       if (distanceToLineSquared(edge.from.position.x, edge.from.position.y, edge.to.position.x, edge.to.position.y, mouseX, mouseY) < edgeDistances[edge.directionType]) {
         deleteEdge(edge.from.id, edge.to.id)

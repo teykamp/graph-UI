@@ -16,7 +16,7 @@ interface Edge {
   directionType: DirectionType
 }
 
-const useGraph = () => {
+const useGraph = (ctx: CanvasRenderingContext2D) => {
   const nodes = reactive<GraphNode[]>([])
   const edges = reactive<Edge[]>([])
   const currentId = ref(1)
