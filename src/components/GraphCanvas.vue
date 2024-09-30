@@ -129,19 +129,23 @@ const drawNode = (ctx: CanvasRenderingContext2D, node: GraphNode) => {
   ctx.fillText(`${node.id}`, node.position.x - 5, node.position.y + 5)
 }
 
+const drawAddNewEdgeWithMiniNode = (ctx: CanvasRenderingContext2D) => {
+  ctx.beginPath()
+  ctx.moveTo(draggingMiniNodeData.value!.origin.position.x, draggingMiniNodeData.value!.origin.position.y)
+  ctx.lineTo(draggingMiniNodeData.value!.mousePosition.x, draggingMiniNodeData.value!.mousePosition.y)
+  ctx.strokeStyle = 'black'
+  ctx.lineWidth = 10
+  ctx.stroke()
+  ctx.closePath()
+}
+
 const draw = (ctx: CanvasRenderingContext2D) => {
   const width = canvas.value!.width
   const height = canvas.value!.height
   ctx.clearRect(0, 0, width, height)
 
   if (draggingMiniNode.value) {
-    ctx.beginPath()
-    ctx.moveTo(draggingMiniNodeData.value!.origin.position.x, draggingMiniNodeData.value!.origin.position.y)
-    ctx.lineTo(draggingMiniNodeData.value!.mousePosition.x, draggingMiniNodeData.value!.mousePosition.y)
-    ctx.strokeStyle = 'black'
-    ctx.lineWidth = 10
-    ctx.stroke()
-    ctx.closePath()
+    drawAddNewEdgeWithMiniNode(ctx)
   }
 
   edges.value.forEach(edge => {

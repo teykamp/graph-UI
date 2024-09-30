@@ -103,7 +103,7 @@ const useGraph = (ctx: CanvasRenderingContext2D) => {
       getEdgeId(toId, fromId) === edge.id
     ))
 
-    const newType = currentEdgeType === 'both-ways' ? 'one-way' : (currentEdgeType === 'one-way' ? 'undirected' : 'both-ways')
+    const newType = currentEdgeType === 'undirected' ? 'one-way' : (currentEdgeType === 'one-way' ? 'both-ways' : 'undirected')
 
     if (edge) {
       if (newType === 'one-way') {
