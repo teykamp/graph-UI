@@ -1,20 +1,5 @@
 import { reactive, computed, ref } from 'vue'
-
-interface GraphNode {
-  id: number
-  position: { x: number, y: number }
-  connectedNodes: Set<GraphNode>
-}
-
-type DirectionType = 'one-way' | 'both-ways' | 'undirected'
-
-interface Edge {
-  id: string
-  from: GraphNode
-  to: GraphNode
-  weight: number
-  directionType: DirectionType
-}
+import type { GraphNode, Edge, DirectionType } from '../utils/types.ts'
 
 const useGraph = (ctx: CanvasRenderingContext2D) => {
   const nodes = reactive<GraphNode[]>([])
