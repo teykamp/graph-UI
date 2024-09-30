@@ -1,42 +1,48 @@
-import { reactive, computed, ref, type Ref, onMounted } from 'vue'
+import { reactive, computed, ref, type Ref, type Reactive, onMounted } from 'vue'
 import type { GraphNode, Edge, DirectionType } from '../utils/types.ts'
 import { miniNodeRadius, nodeRadius, miniNodeOffsets } from '../utils/constants.ts'
 import { checkHoverMiniNodes, distanceToLineSquared, isMouseOnNode } from '../utils/mouseGeometry'
 
-type GraphOptions = {
-  nodeColor?: string,
-  nodeBorderColor?: string,
-  nodeTextColor?: string,
-  nodeTextSize?: number,
-  edgeWeight?: number,
-  edgeColor?: string,
-  edgeTextColor?: string,
-  edgeTextSize?: number,
-  miniNodeColor?: string
-}
+type GraphOptions = Partial<{
+  nodeColor: string,
+  nodeBorderColor: string,
+  nodeTextColor: string,
+  nodeTextSize: number,
+  nodeBorderWeight: number,
+  edgeWeight: number,
+  edgeColor: string,
+  edgeTextColor: string,
+  edgeTextSize: number,
+  miniNodeColor: string,
+  // 
+  nodes: Reactive<GraphNode[]>
+  edges: Reactive<Edge[]>
+  // 
+  onStructureChange: (nodes: Reactive<GraphNode[]>, edges: Reactive<Edge[]>) => void
+}>
 
-const useGraph = (canvas: Ref<HTMLCanvasElement | null>, graphOptions: GraphOptions = {}) => {
+const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions = {}) => {
 
-  const options = {
-    nodeColor: graphOptions.nodeColor ?? '#1F2937',
-    nodeBorderColor: graphOptions.nodeBorderColor ?? '#121A29',
-    nodeTextColor: graphOptions.nodeTextColor ?? 'white',
-    nodeTextSize: graphOptions.nodeTextSize ?? 20,
-    edgeWeight: graphOptions.edgeWeight ?? 10,
-    edgeColor: graphOptions.edgeColor ?? '#121A29',
-    edgeTextColor: graphOptions.edgeTextColor ?? 'white',
-    edgeTextSize: graphOptions.edgeTextSize ?? 15,
-    miniNodeColor: graphOptions.miniNodeColor ?? '#121A29'
-  }
+  const {
+    nodeColor = '#1F2937',
+    nodeBorderColor = '#121A29',
+    nodeTextColor = 'white',
+    nodeTextSize = 20,
+    nodeBorderWeight = 10,
+    edgeWeight = 10,
+    edgeColor = '#121A29',
+    edgeTextColor = 'white',
+    edgeTextSize = 15,
+    miniNodeColor = '#121A29',
+    nodes = reactive<GraphNode[]>([]),
+    edges = reactive<Edge[]>([]),
+  } = options
 
   const isDragging = ref(false)
   const draggedNode = ref<GraphNode | null>(null)
   const hoveredNode = ref<GraphNode | null>(null)
   const draggingMiniNode = ref(false)
   const draggingMiniNodeData = ref<{ origin: GraphNode, mousePosition: { x: number, y: number } } | null>(null)
-
-  const nodes = reactive<GraphNode[]>([])
-  const edges = reactive<Edge[]>([])
   const currentId = ref(1)
   const edgeDistances = {
     'both-ways': 50 ** 2,
@@ -185,7 +191,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, graphOptions: GraphOpti
     Object.values(miniNodeOffsets).forEach(miniNode => {
       ctx.beginPath()
       ctx.arc(originX + miniNode.x, originY + miniNode.y, miniNodeRadius, 0, Math.PI * 2)
-      ctx.fillStyle = 'black'
+      ctx.fillStyle = miniNodeColor
       ctx.fill()
       ctx.closePath()
     })
@@ -200,8 +206,8 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, graphOptions: GraphOpti
       ctx.beginPath()
       ctx.moveTo(edge.from.position.x, edge.from.position.y)
       ctx.lineTo(edge.to.position.x - (nodeRadius + 10) * Math.cos(angle), edge.to.position.y - (nodeRadius + 10) * Math.sin(angle))
-      ctx.strokeStyle = 'black'
-      ctx.lineWidth = 10
+      ctx.strokeStyle = edgeColor
+      ctx.lineWidth = edgeWeight
       ctx.stroke()
       ctx.closePath()
 
@@ -223,7 +229,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, graphOptions: GraphOpti
         offsetY - 30 * Math.sin(angle + Math.PI / 6)
       )
       ctx.lineTo(offsetX, offsetY)
-      ctx.fillStyle = 'black'
+      ctx.fillStyle = edgeColor
       ctx.fill()
       ctx.closePath()
 
@@ -242,8 +248,8 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, graphOptions: GraphOpti
       ctx.moveTo(edge.from.position.x - lineOffsetX + (nodeRadius + 10) * Math.cos(angle), edge.from.position.y - lineOffsetY + (nodeRadius + 10) * Math.sin(angle))
       ctx.lineTo(edge.to.position.x - lineOffsetX, edge.to.position.y - lineOffsetY)
 
-      ctx.strokeStyle = 'black'
-      ctx.lineWidth = 10
+      ctx.strokeStyle = edgeColor
+      ctx.lineWidth = edgeWeight
       ctx.stroke()
       ctx.closePath()
 
@@ -263,19 +269,20 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, graphOptions: GraphOpti
           arrowOffsetY - 30 * Math.sin(angle + Math.PI / 6)
         )
         ctx.lineTo(arrowOffsetX, arrowOffsetY)
-        ctx.fillStyle = 'black'
+        ctx.fillStyle = edgeColor
         ctx.fill()
         ctx.closePath()
       }
       drawArrow(edge.to.position.x + lineOffsetX, edge.to.position.y + lineOffsetY, angle)
       drawArrow(edge.from.position.x - lineOffsetX, edge.from.position.y - lineOffsetY, angle - Math.PI)
+      // TODO: customize as option
 
     } else {
       ctx.beginPath()
       ctx.moveTo(edge.from.position.x, edge.from.position.y)
       ctx.lineTo(edge.to.position.x, edge.to.position.y)
-      ctx.strokeStyle = 'black'
-      ctx.lineWidth = 10
+      ctx.strokeStyle = edgeColor
+      ctx.lineWidth = edgeWeight
       ctx.stroke()
       ctx.closePath()
     }
@@ -284,11 +291,15 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, graphOptions: GraphOpti
   const drawNode = (ctx: CanvasRenderingContext2D, node: GraphNode) => {
     ctx.beginPath()
     ctx.arc(node.position.x, node.position.y, nodeRadius, 0, Math.PI * 2)
-    ctx.fillStyle = 'blue'
+    ctx.fillStyle = nodeColor
     ctx.fill()
     ctx.closePath()
-    ctx.fillStyle = 'white'
-    ctx.font = 'italic 20px Arial'
+    ctx.strokeStyle = nodeBorderColor
+    ctx.lineWidth = nodeBorderWeight
+    ctx.stroke()
+    ctx.closePath()
+    ctx.fillStyle = nodeTextColor
+    ctx.font = `italic ${nodeTextSize}px Arial`
     ctx.fillText(`${node.id}`, node.position.x - 5, node.position.y + 5)
   }
 
@@ -296,8 +307,8 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, graphOptions: GraphOpti
     ctx.beginPath()
     ctx.moveTo(draggingMiniNodeData.value!.origin.position.x, draggingMiniNodeData.value!.origin.position.y)
     ctx.lineTo(draggingMiniNodeData.value!.mousePosition.x, draggingMiniNodeData.value!.mousePosition.y)
-    ctx.strokeStyle = 'black'
-    ctx.lineWidth = 10
+    ctx.strokeStyle = edgeColor
+    ctx.lineWidth = edgeWeight
     ctx.stroke()
     ctx.closePath()
   }
@@ -308,8 +319,6 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, graphOptions: GraphOpti
 
     requestAnimationFrame(animate)
   }
-
-
 
   const timeoutIsActive = ref(false)
 
