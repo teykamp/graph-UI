@@ -1,7 +1,7 @@
 import { reactive, computed, ref, type Ref, type Reactive, onMounted } from 'vue'
 import type { GraphNode, Edge, DirectionType } from '../utils/types.ts'
 import { miniNodeRadius, nodeRadius, miniNodeOffsets } from '../utils/constants.ts'
-import { checkHoverMiniNodes, distanceToLineSquared, isMouseOnNode } from '../utils/mouseGeometry'
+import { checkHoverMiniNodes, distanceToLineSquared, isMouseOnNode, averageCoordsofTwoPoints } from '../utils/mouseGeometry'
 
 type GraphOptions = Partial<{
   nodeColor: string,
@@ -198,6 +198,26 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
   }
 
   const drawEdge = (ctx: CanvasRenderingContext2D, edge: Edge) => {
+    const drawArrow = (x: number, y: number, angle: number) => {
+      const arrowOffsetX = x - nodeRadius * Math.cos(angle)
+      const arrowOffsetY = y - nodeRadius * Math.sin(angle)
+
+      ctx.beginPath()
+      ctx.moveTo(arrowOffsetX, arrowOffsetY)
+      ctx.lineTo(
+        arrowOffsetX - 30 * Math.cos(angle - Math.PI / 6),
+        arrowOffsetY - 30 * Math.sin(angle - Math.PI / 6)
+      )
+      ctx.lineTo(
+        arrowOffsetX - 30 * Math.cos(angle + Math.PI / 6),
+        arrowOffsetY - 30 * Math.sin(angle + Math.PI / 6)
+      )
+      ctx.lineTo(arrowOffsetX, arrowOffsetY)
+      ctx.fillStyle = edgeColor
+      ctx.fill()
+      ctx.closePath()
+    }
+
     if (edge.directionType === 'one-way') {
       const angle = Math.atan2(
         edge.to.position.y - edge.from.position.y,
@@ -211,27 +231,13 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.stroke()
       ctx.closePath()
 
-      const endX = edge.to.position.x
-      const endY = edge.to.position.y
-      const offset = nodeRadius
+      drawArrow(edge.to.position.x, edge.to.position.y, angle)
 
-      const offsetX = endX - offset * Math.cos(angle)
-      const offsetY = endY - offset * Math.sin(angle)
-
-      ctx.beginPath()
-      ctx.moveTo(offsetX, offsetY)
-      ctx.lineTo(
-        offsetX - 30 * Math.cos(angle - Math.PI / 6),
-        offsetY - 30 * Math.sin(angle - Math.PI / 6)
-      )
-      ctx.lineTo(
-        offsetX - 30 * Math.cos(angle + Math.PI / 6),
-        offsetY - 30 * Math.sin(angle + Math.PI / 6)
-      )
-      ctx.lineTo(offsetX, offsetY)
-      ctx.fillStyle = edgeColor
-      ctx.fill()
-      ctx.closePath()
+      const { x, y } = averageCoordsofTwoPoints(edge.from.position.x, edge.from.position.y, edge.to.position.x, edge.to.position.y)
+      ctx.fillStyle = edgeTextColor
+      ctx.font = `${edgeTextSize}px Arial`
+      ctx.textAlign = 'center'
+      ctx.fillText(`${edge.weight}`, x, y)
 
     } else if (edge.directionType === 'both-ways') {
       const angle = Math.atan2(
@@ -253,26 +259,17 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.stroke()
       ctx.closePath()
 
-      // arrows
-      const drawArrow = (x: number, y: number, angle: number) => {
-        const arrowOffsetX = x - nodeRadius * Math.cos(angle)
-        const arrowOffsetY = y - nodeRadius * Math.sin(angle)
+      const { x: x1, y: y1 } = averageCoordsofTwoPoints(edge.from.position.x + lineOffsetX, edge.from.position.y + lineOffsetY, edge.to.position.x + lineOffsetX - (nodeRadius + 10) * Math.cos(angle), edge.to.position.y + lineOffsetY - (nodeRadius + 10) * Math.sin(angle))
+      const { x: x2, y: y2 } = averageCoordsofTwoPoints(edge.from.position.x - lineOffsetX + (nodeRadius + 10) * Math.cos(angle), edge.from.position.y - lineOffsetY + (nodeRadius + 10) * Math.sin(angle), edge.to.position.x - lineOffsetX, edge.to.position.y - lineOffsetY)
 
-        ctx.beginPath()
-        ctx.moveTo(arrowOffsetX, arrowOffsetY)
-        ctx.lineTo(
-          arrowOffsetX - 30 * Math.cos(angle - Math.PI / 6),
-          arrowOffsetY - 30 * Math.sin(angle - Math.PI / 6)
-        )
-        ctx.lineTo(
-          arrowOffsetX - 30 * Math.cos(angle + Math.PI / 6),
-          arrowOffsetY - 30 * Math.sin(angle + Math.PI / 6)
-        )
-        ctx.lineTo(arrowOffsetX, arrowOffsetY)
-        ctx.fillStyle = edgeColor
-        ctx.fill()
-        ctx.closePath()
-      }
+      ctx.fillStyle = edgeTextColor
+      ctx.textAlign = 'center'
+      ctx.font = `${edgeTextSize}px Arial`
+      ctx.fillText(`${edge.weight}`, x1, y1)
+      ctx.fillText(`${edge.weight}`, x2, y2)
+
+      // arrows
+      
       drawArrow(edge.to.position.x + lineOffsetX, edge.to.position.y + lineOffsetY, angle)
       drawArrow(edge.from.position.x - lineOffsetX, edge.from.position.y - lineOffsetY, angle - Math.PI)
       // TODO: customize as option
@@ -285,6 +282,12 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.lineWidth = edgeWeight
       ctx.stroke()
       ctx.closePath()
+
+      const { x, y } = averageCoordsofTwoPoints(edge.from.position.x, edge.from.position.y, edge.to.position.x, edge.to.position.y)
+      ctx.fillStyle = edgeTextColor
+      ctx.textAlign = 'center'
+      ctx.font = `${edgeTextSize}px Arial`
+      ctx.fillText(`${edge.weight}`, x, y)
     }
   }
 
@@ -299,8 +302,9 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
     ctx.stroke()
     ctx.closePath()
     ctx.fillStyle = nodeTextColor
-    ctx.font = `italic ${nodeTextSize}px Arial`
-    ctx.fillText(`${node.id}`, node.position.x - 5, node.position.y + 5)
+    ctx.textAlign = 'center'
+    ctx.font = `${nodeTextSize}px Arial`
+    ctx.fillText(`${node.id}`, node.position.x, node.position.y + 5)
   }
 
   const drawAddNewEdgeWithMiniNode = (ctx: CanvasRenderingContext2D) => {

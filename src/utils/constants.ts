@@ -1,4 +1,4 @@
-export const nodeRadius = 50
+export const nodeRadius = 40
 export const miniNodeRadius = 10
 
 export const miniNodeOffsets = {
