@@ -3,17 +3,19 @@ import type { GraphNode, Edge, DirectionType } from '../utils/types.ts'
 import { miniNodeRadius, nodeRadius, miniNodeOffsets } from '../utils/constants.ts'
 import { checkHoverMiniNodes, distanceToLineSquared, isMouseOnNode, averageCoordsofTwoPoints } from '../utils/mouseGeometry'
 
+type GetterOrValue<T, K extends any[] =[] > = T | ((...arg: K) => T)
+
 type GraphOptions = Partial<{
-  nodeColor: string,
-  nodeBorderColor: string,
-  nodeTextColor: string,
-  nodeTextSize: number,
-  nodeBorderWeight: number,
-  edgeWeight: number,
-  edgeColor: string,
-  edgeTextColor: string,
-  edgeTextSize: number,
-  miniNodeColor: string,
+  nodeColor: GetterOrValue<string>,
+  nodeBorderColor: GetterOrValue<string>,
+  nodeTextColor: GetterOrValue<string>,
+  nodeTextSize: GetterOrValue<number>,
+  nodeBorderWeight: GetterOrValue<number>,
+  edgeWeight: GetterOrValue<number>,
+  edgeColor: GetterOrValue<string>,
+  edgeTextColor: GetterOrValue<string>,
+  edgeTextSize: GetterOrValue<number>,
+  miniNodeColor: GetterOrValue<string>,
   // 
   nodes: Reactive<GraphNode[]>
   edges: Reactive<Edge[]>
@@ -22,6 +24,13 @@ type GraphOptions = Partial<{
 }>
 
 const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions = {}) => {
+
+  const getValue = <T, K extends any[]>(value: GetterOrValue<T, K>, ...args: K) => {
+    if (typeof value === 'function') {
+      return (value as (...args: K) => T)(...args)
+    }
+    return value
+  }
 
   const {
     nodeColor = '#1F2937',
@@ -44,6 +53,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
   const draggingMiniNode = ref(false)
   const draggingMiniNodeData = ref<{ origin: GraphNode, mousePosition: { x: number, y: number } } | null>(null)
   const currentId = ref(1)
+  const edgeOfClickedWeight = ref<Edge | null>(null)
   const edgeDistances = {
     'both-ways': 50 ** 2,
     'one-way': 10 ** 2,
@@ -73,7 +83,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       let existingEdge = edges.find(edge => (
         (edge.from === fromNode && edge.to === toNode) ||
         (edge.from === toNode && edge.to === fromNode)
-      )) // update this so `from -> to` just changes the type to directed both ways
+      )) // TODO: update this so `from -> to` just changes the type to directed both ways
 
       if (existingEdge) return
       
@@ -191,7 +201,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
     Object.values(miniNodeOffsets).forEach(miniNode => {
       ctx.beginPath()
       ctx.arc(originX + miniNode.x, originY + miniNode.y, miniNodeRadius, 0, Math.PI * 2)
-      ctx.fillStyle = miniNodeColor
+      ctx.fillStyle = getValue(miniNodeColor, miniNode)
       ctx.fill()
       ctx.closePath()
     })
@@ -213,7 +223,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
         arrowOffsetY - 30 * Math.sin(angle + Math.PI / 6)
       )
       ctx.lineTo(arrowOffsetX, arrowOffsetY)
-      ctx.fillStyle = edgeColor
+      ctx.fillStyle = getValue(edgeColor, edge)
       ctx.fill()
       ctx.closePath()
     }
@@ -226,16 +236,16 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.beginPath()
       ctx.moveTo(edge.from.position.x, edge.from.position.y)
       ctx.lineTo(edge.to.position.x - (nodeRadius + 10) * Math.cos(angle), edge.to.position.y - (nodeRadius + 10) * Math.sin(angle))
-      ctx.strokeStyle = edgeColor
-      ctx.lineWidth = edgeWeight
+      ctx.strokeStyle = getValue(edgeColor, edge)
+      ctx.lineWidth = getValue(edgeWeight, edge)
       ctx.stroke()
       ctx.closePath()
 
       drawArrow(edge.to.position.x, edge.to.position.y, angle)
 
       const { x, y } = averageCoordsofTwoPoints(edge.from.position.x, edge.from.position.y, edge.to.position.x, edge.to.position.y)
-      ctx.fillStyle = edgeTextColor
-      ctx.font = `${edgeTextSize}px Arial`
+      ctx.fillStyle = getValue(edgeTextColor, edge)
+      ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
       ctx.textAlign = 'center'
       ctx.fillText(`${edge.weight}`, x, y)
 
@@ -254,22 +264,20 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.moveTo(edge.from.position.x - lineOffsetX + (nodeRadius + 10) * Math.cos(angle), edge.from.position.y - lineOffsetY + (nodeRadius + 10) * Math.sin(angle))
       ctx.lineTo(edge.to.position.x - lineOffsetX, edge.to.position.y - lineOffsetY)
 
-      ctx.strokeStyle = edgeColor
-      ctx.lineWidth = edgeWeight
+      ctx.strokeStyle = getValue(edgeColor, edge)
+      ctx.lineWidth = getValue(edgeWeight, edge)
       ctx.stroke()
       ctx.closePath()
 
       const { x: x1, y: y1 } = averageCoordsofTwoPoints(edge.from.position.x + lineOffsetX, edge.from.position.y + lineOffsetY, edge.to.position.x + lineOffsetX - (nodeRadius + 10) * Math.cos(angle), edge.to.position.y + lineOffsetY - (nodeRadius + 10) * Math.sin(angle))
       const { x: x2, y: y2 } = averageCoordsofTwoPoints(edge.from.position.x - lineOffsetX + (nodeRadius + 10) * Math.cos(angle), edge.from.position.y - lineOffsetY + (nodeRadius + 10) * Math.sin(angle), edge.to.position.x - lineOffsetX, edge.to.position.y - lineOffsetY)
 
-      ctx.fillStyle = edgeTextColor
+      ctx.fillStyle = getValue(edgeTextColor, edge)
       ctx.textAlign = 'center'
-      ctx.font = `${edgeTextSize}px Arial`
+      ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
       ctx.fillText(`${edge.weight}`, x1, y1)
       ctx.fillText(`${edge.weight}`, x2, y2)
 
-      // arrows
-      
       drawArrow(edge.to.position.x + lineOffsetX, edge.to.position.y + lineOffsetY, angle)
       drawArrow(edge.from.position.x - lineOffsetX, edge.from.position.y - lineOffsetY, angle - Math.PI)
       // TODO: customize as option
@@ -278,32 +286,32 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.beginPath()
       ctx.moveTo(edge.from.position.x, edge.from.position.y)
       ctx.lineTo(edge.to.position.x, edge.to.position.y)
-      ctx.strokeStyle = edgeColor
-      ctx.lineWidth = edgeWeight
+      ctx.strokeStyle = getValue(edgeColor, edge)
+      ctx.lineWidth = getValue(edgeWeight, edge)
       ctx.stroke()
       ctx.closePath()
 
       const { x, y } = averageCoordsofTwoPoints(edge.from.position.x, edge.from.position.y, edge.to.position.x, edge.to.position.y)
-      ctx.fillStyle = edgeTextColor
+      ctx.fillStyle = getValue(edgeTextColor, edge)
       ctx.textAlign = 'center'
-      ctx.font = `${edgeTextSize}px Arial`
+      ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
       ctx.fillText(`${edge.weight}`, x, y)
     }
   }
 
   const drawNode = (ctx: CanvasRenderingContext2D, node: GraphNode) => {
     ctx.beginPath()
-    ctx.arc(node.position.x, node.position.y, nodeRadius, 0, Math.PI * 2)
-    ctx.fillStyle = nodeColor
+    ctx.arc(node.position.x, node.position.y, nodeRadius - getValue(nodeBorderWeight, node), 0, Math.PI * 2)
+    ctx.fillStyle = getValue(nodeColor, node)
     ctx.fill()
     ctx.closePath()
-    ctx.strokeStyle = nodeBorderColor
-    ctx.lineWidth = nodeBorderWeight
+    ctx.strokeStyle = getValue(nodeBorderColor, node)
+    ctx.lineWidth = getValue(nodeBorderWeight, node)
     ctx.stroke()
     ctx.closePath()
-    ctx.fillStyle = nodeTextColor
+    ctx.fillStyle = getValue(nodeTextColor, node)
     ctx.textAlign = 'center'
-    ctx.font = `${nodeTextSize}px Arial`
+    ctx.font = `${getValue(nodeTextSize, node)}px Arial`
     ctx.fillText(`${node.id}`, node.position.x, node.position.y + 5)
   }
 
@@ -311,8 +319,8 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
     ctx.beginPath()
     ctx.moveTo(draggingMiniNodeData.value!.origin.position.x, draggingMiniNodeData.value!.origin.position.y)
     ctx.lineTo(draggingMiniNodeData.value!.mousePosition.x, draggingMiniNodeData.value!.mousePosition.y)
-    ctx.strokeStyle = edgeColor
-    ctx.lineWidth = edgeWeight
+    ctx.strokeStyle = getValue(edgeColor)
+    ctx.lineWidth = getValue(edgeWeight) // TODO: make separate color/weight etc.
     ctx.stroke()
     ctx.closePath()
   }
@@ -401,7 +409,50 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
   const onMouseUp = (event: MouseEvent) => {
     const mouseX = event.offsetX
     const mouseY = event.offsetY
-    if (!isDragging.value && !draggingMiniNode.value) {
+
+    const clickedEdgeWeight = edges.findIndex(edge => {
+      if (edge.directionType === 'both-ways') {
+        const angle = Math.atan2(
+          edge.to.position.y - edge.from.position.y,
+          edge.to.position.x - edge.from.position.x
+        )
+        // TODO: need to separate the two-way edge into two edges. make sure they are always differentiable
+        const lineOffsetX = 20 * Math.cos(angle + Math.PI / 2)
+        const lineOffsetY = 20 * Math.sin(angle + Math.PI / 2)
+        const { x: x1, y: y1 } = averageCoordsofTwoPoints(edge.from.position.x + lineOffsetX, edge.from.position.y + lineOffsetY, edge.to.position.x + lineOffsetX - (nodeRadius + 10) * Math.cos(angle), edge.to.position.y + lineOffsetY - (nodeRadius + 10) * Math.sin(angle))
+        const { x: x2, y: y2 } = averageCoordsofTwoPoints(edge.from.position.x - lineOffsetX + (nodeRadius + 10) * Math.cos(angle), edge.from.position.y - lineOffsetY + (nodeRadius + 10) * Math.sin(angle), edge.to.position.x - lineOffsetX, edge.to.position.y - lineOffsetY)
+        const dx1 = mouseX - x1
+        const dy1 = mouseY - y1
+        const distanceSquared1 = dx1 * dx1 + dy1 * dy1
+        const dx2 = mouseX - x2
+        const dy2 = mouseY - y2
+        const distanceSquared2 = dx2 * dx2 + dy2 * dy2
+        return distanceSquared1 < getValue(edgeTextSize) ** 2 || distanceSquared2 < getValue(edgeTextSize) ** 2
+      } else {
+        const { x, y } = averageCoordsofTwoPoints(edge.from.position.x, edge.from.position.y, edge.to.position.x, edge.to.position.y)
+        const dx = mouseX - x
+        const dy = mouseY - y
+        const distanceSquared = dx * dx + dy * dy
+        return distanceSquared < getValue(edgeTextSize) ** 2
+      }
+    })
+
+    if (clickedEdgeWeight !== -1 && !isDragging.value) {
+      edgeOfClickedWeight.value = getEdges.value[clickedEdgeWeight]
+      // const inputElement = document.createElement('div')
+      // inputElement.style.position = 'absolute'
+      // inputElement.style.left = `${mouseX}px`
+      // inputElement.style.top = `${mouseY}px`
+      // inputElement.innerHTML = `<input type="number" :v-model="${getEdges.value[clickedEdgeWeight].weight}" />`
+
+      // const container = document.getElementById('dynamic-input-container')
+      // if (container) container.appendChild(inputElement)
+
+    } else {
+      edgeOfClickedWeight.value = null
+    }
+
+    if (!isDragging.value && !draggingMiniNode.value && !edgeOfClickedWeight.value) {
       getEdges.value.forEach(edge => {
         if (distanceToLineSquared(edge.from.position.x, edge.from.position.y, edge.to.position.x, edge.to.position.y, mouseX, mouseY) < edgeDistances[edge.directionType]) {
           updateEdgeType(edge.from.id, edge.to.id, edge.directionType)
@@ -429,9 +480,9 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
     if (nodeIndex !== -1) {
       deleteNode(getNodes.value[nodeIndex].id)
       hoveredNode.value = null
-    } else if (!timeoutIsActive.value) {
+    } else if (!timeoutIsActive.value && !edgeOfClickedWeight.value) {
       addNode(mouseX, mouseY)
-    } else if (!isDragging.value && !draggingMiniNode.value) {
+    } else if (!isDragging.value && !draggingMiniNode.value && !edgeOfClickedWeight.value) {
       getEdges.value.forEach(edge => {
         if (distanceToLineSquared(edge.from.position.x, edge.from.position.y, edge.to.position.x, edge.to.position.y, mouseX, mouseY) < edgeDistances[edge.directionType]) {
           deleteEdge(edge.from.id, edge.to.id)

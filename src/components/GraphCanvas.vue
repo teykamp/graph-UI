@@ -9,6 +9,7 @@ useGraph(canvas)
 </script>
 
 <template>
+  <div id="dynamic-input-container"></div>
   <canvas 
     ref="canvas"
     :height="1000"
