@@ -81,10 +81,12 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
 
     if (fromNode && toNode) {
       let existingEdge = edges.find(edge => (
-        (edge.from === fromNode && edge.to === toNode) ||
-        (edge.from === toNode && edge.to === fromNode)
+        directionType !== 'both-ways' &&
+        ((edge.from === fromNode && edge.to === toNode) ||
+        (edge.from === toNode && edge.to === fromNode) )
       )) // TODO: update this so `from -> to` just changes the type to directed both ways
 
+      
       if (existingEdge) return
       
       if (directionType === 'both-ways' || directionType === 'undirected') {
@@ -97,7 +99,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
         id: getEdgeId(fromId, toId),
         from: fromNode,
         to: toNode,
-        weight: [1, 0.5],
+        weight: 1,
         directionType: directionType
       }
 
@@ -131,8 +133,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
 
   const deleteEdge = (fromId: number, toId: number) => {
     const edgeIndex = edges.findIndex(edge => (
-      getEdgeId(fromId, toId) === edge.id ||
-      getEdgeId(toId, fromId) === edge.id
+      getEdgeId(fromId, toId) === edge.id
     ))
 
     if (edgeIndex === -1) return
@@ -147,8 +148,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
 
   const updateEdgeType = (fromId: number, toId: number, currentEdgeType: DirectionType) => {
     const edge = edges.find(edge => (
-      getEdgeId(fromId, toId) === edge.id ||
-      getEdgeId(toId, fromId) === edge.id
+      getEdgeId(fromId, toId) === edge.id
     ))
 
     const newType = currentEdgeType === 'undirected' ? 'one-way' : (currentEdgeType === 'one-way' ? 'both-ways' : 'undirected')
@@ -158,13 +158,35 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
         edge.directionType = 'one-way'
         edge.from.connectedNodes.add(edge.to)
         edge.to.connectedNodes.delete(edge.from)
-      } else {
-        edge.directionType = newType
+
+        const reverseEdgeIndex = edges.findIndex(e => getEdgeId(toId, fromId) === e.id)
+        if (reverseEdgeIndex !== -1) {
+          const reverseEdge = edges[reverseEdgeIndex]
+          reverseEdge.from.connectedNodes.delete(reverseEdge.to)
+          reverseEdge.to.connectedNodes.delete(reverseEdge.from)
+          edges.splice(reverseEdgeIndex, 1)
+        }
+      } else if (newType === 'both-ways') {
+        edge.directionType = 'both-ways'
         edge.from.connectedNodes.add(edge.to)
         edge.to.connectedNodes.add(edge.from)
+
+        const reverseEdge = edges.find(e => getEdgeId(toId, fromId) === e.id)
+        if (!reverseEdge) {
+          addEdge(toId, fromId, 'both-ways')
+
+        }
+      } else if (newType === 'undirected') {
+        edge.directionType = 'undirected'
+        edge.from.connectedNodes.add(edge.to) // probably don't need
+        edge.to.connectedNodes.add(edge.from) // probably don't need
+
+        deleteEdge(toId, fromId)
       }
     }
+
   }
+
 
   const draw = () => {
     const width = canvas.value!.width
@@ -246,7 +268,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.fillStyle = getValue(edgeTextColor, edge)
       ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
       ctx.textAlign = 'center'
-      ctx.fillText(`${edge.weight[0]}`, x, y)
+      ctx.fillText(`${edge.weight}`, x, y)
 
     } else if (edge.directionType === 'both-ways') {
       const angle = Math.atan2(
@@ -260,25 +282,19 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.moveTo(edge.from.position.x + lineOffsetX, edge.from.position.y + lineOffsetY)
       ctx.lineTo(edge.to.position.x + lineOffsetX - (nodeRadius + 10) * Math.cos(angle), edge.to.position.y + lineOffsetY - (nodeRadius + 10) * Math.sin(angle))
 
-      ctx.moveTo(edge.from.position.x - lineOffsetX + (nodeRadius + 10) * Math.cos(angle), edge.from.position.y - lineOffsetY + (nodeRadius + 10) * Math.sin(angle))
-      ctx.lineTo(edge.to.position.x - lineOffsetX, edge.to.position.y - lineOffsetY)
-
       ctx.strokeStyle = getValue(edgeColor, edge)
-      ctx.lineWidth = getValue(edgeWeight[0], edge)
+      ctx.lineWidth = getValue(edgeWeight, edge)
       ctx.stroke()
       ctx.closePath()
 
       const { x: x1, y: y1 } = averageCoordsofTwoPoints(edge.from.position.x + lineOffsetX, edge.from.position.y + lineOffsetY, edge.to.position.x + lineOffsetX - (nodeRadius + 10) * Math.cos(angle), edge.to.position.y + lineOffsetY - (nodeRadius + 10) * Math.sin(angle))
-      const { x: x2, y: y2 } = averageCoordsofTwoPoints(edge.from.position.x - lineOffsetX + (nodeRadius + 10) * Math.cos(angle), edge.from.position.y - lineOffsetY + (nodeRadius + 10) * Math.sin(angle), edge.to.position.x - lineOffsetX, edge.to.position.y - lineOffsetY)
 
       ctx.fillStyle = getValue(edgeTextColor, edge)
       ctx.textAlign = 'center'
       ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
-      ctx.fillText(`${edge.weight[0]}`, x1, y1)
-      ctx.fillText(`${edge.weight[1]}`, x2, y2)
+      ctx.fillText(`${edge.weight}`, x1, y1)
 
       drawArrow(edge.to.position.x + lineOffsetX, edge.to.position.y + lineOffsetY, angle)
-      drawArrow(edge.from.position.x - lineOffsetX, edge.from.position.y - lineOffsetY, angle - Math.PI)
       // TODO: customize as option
 
     } else {
@@ -294,7 +310,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.fillStyle = getValue(edgeTextColor, edge)
       ctx.textAlign = 'center'
       ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
-      ctx.fillText(`${edge.weight[0]}`, x, y)
+      ctx.fillText(`${edge.weight}`, x, y)
     }
   }
 

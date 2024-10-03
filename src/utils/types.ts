@@ -11,5 +11,5 @@ export interface Edge {
   from: GraphNode
   to: GraphNode
   directionType: DirectionType
-  weight: [number, number]
+  weight: number
 }
