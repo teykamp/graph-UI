@@ -97,13 +97,12 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
         id: getEdgeId(fromId, toId),
         from: fromNode,
         to: toNode,
-        weight: 1,
+        weight: [1, 0.5],
         directionType: directionType
       }
 
       edges.push(newEdge)
     }
-    
   }
 
   const deleteNode = (id: string | number) => {
@@ -247,7 +246,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.fillStyle = getValue(edgeTextColor, edge)
       ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
       ctx.textAlign = 'center'
-      ctx.fillText(`${edge.weight}`, x, y)
+      ctx.fillText(`${edge.weight[0]}`, x, y)
 
     } else if (edge.directionType === 'both-ways') {
       const angle = Math.atan2(
@@ -265,7 +264,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.lineTo(edge.to.position.x - lineOffsetX, edge.to.position.y - lineOffsetY)
 
       ctx.strokeStyle = getValue(edgeColor, edge)
-      ctx.lineWidth = getValue(edgeWeight, edge)
+      ctx.lineWidth = getValue(edgeWeight[0], edge)
       ctx.stroke()
       ctx.closePath()
 
@@ -275,8 +274,8 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.fillStyle = getValue(edgeTextColor, edge)
       ctx.textAlign = 'center'
       ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
-      ctx.fillText(`${edge.weight}`, x1, y1)
-      ctx.fillText(`${edge.weight}`, x2, y2)
+      ctx.fillText(`${edge.weight[0]}`, x1, y1)
+      ctx.fillText(`${edge.weight[1]}`, x2, y2)
 
       drawArrow(edge.to.position.x + lineOffsetX, edge.to.position.y + lineOffsetY, angle)
       drawArrow(edge.from.position.x - lineOffsetX, edge.from.position.y - lineOffsetY, angle - Math.PI)
@@ -295,7 +294,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.fillStyle = getValue(edgeTextColor, edge)
       ctx.textAlign = 'center'
       ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
-      ctx.fillText(`${edge.weight}`, x, y)
+      ctx.fillText(`${edge.weight[0]}`, x, y)
     }
   }
 
@@ -320,7 +319,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
     ctx.moveTo(draggingMiniNodeData.value!.origin.position.x, draggingMiniNodeData.value!.origin.position.y)
     ctx.lineTo(draggingMiniNodeData.value!.mousePosition.x, draggingMiniNodeData.value!.mousePosition.y)
     ctx.strokeStyle = getValue(edgeColor)
-    ctx.lineWidth = getValue(edgeWeight) // TODO: make separate color/weight etc.
+    ctx.lineWidth = getValue(edgeWeight)
     ctx.stroke()
     ctx.closePath()
   }
