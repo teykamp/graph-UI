@@ -184,7 +184,6 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
         deleteEdge(toId, fromId)
       }
     }
-
   }
 
 
@@ -501,6 +500,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       getEdges.value.forEach(edge => {
         if (distanceToLineSquared(edge.from.position.x, edge.from.position.y, edge.to.position.x, edge.to.position.y, mouseX, mouseY) < edgeDistances[edge.directionType]) {
           deleteEdge(edge.from.id, edge.to.id)
+          deleteEdge(edge.to.id, edge.from.id)
         }
       })
     }
