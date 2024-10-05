@@ -6,6 +6,8 @@ import { checkHoverMiniNodes, distanceToLineSquared, isMouseOnNode, averageCoord
 type GetterOrValue<T, K extends any[] =[] > = T | ((...arg: K) => T)
 
 type GraphOptions = Partial<{
+  canvasColor: GetterOrValue<string>,
+  // 
   nodeColor: GetterOrValue<string>,
   nodeBorderColor: GetterOrValue<string>,
   nodeTextColor: GetterOrValue<string>,
@@ -33,6 +35,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
   }
 
   const {
+    canvasColor = 'rgb(55 65 81)',
     nodeColor = '#1F2937',
     nodeBorderColor = '#121A29',
     nodeTextColor = 'white',
@@ -221,6 +224,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
     Object.values(miniNodeOffsets).forEach(miniNode => {
       ctx.beginPath()
       ctx.arc(originX + miniNode.x, originY + miniNode.y, miniNodeRadius, 0, Math.PI * 2)
+      // @ts-expect-error
       ctx.fillStyle = getValue(miniNodeColor, miniNode)
       ctx.fill()
       ctx.closePath()
@@ -228,7 +232,9 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
   }
 
   const drawEdge = (ctx: CanvasRenderingContext2D, edge: Edge) => {
-    const drawArrow = (x: number, y: number, angle: number) => {
+
+    // TODO: makeedge 2 lines with space for number in middle
+    const drawArrowHead = (x: number, y: number, angle: number) => {
       const arrowOffsetX = x - nodeRadius * Math.cos(angle)
       const arrowOffsetY = y - nodeRadius * Math.sin(angle)
 
@@ -243,88 +249,124 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
         arrowOffsetY - 30 * Math.sin(angle + Math.PI / 6)
       )
       ctx.lineTo(arrowOffsetX, arrowOffsetY)
+      // @ts-expect-error
       ctx.fillStyle = getValue(edgeColor, edge)
       ctx.fill()
       ctx.closePath()
     }
 
+    const angle = Math.atan2(
+      edge.to.position.y - edge.from.position.y,
+      edge.to.position.x - edge.from.position.x
+    )
+
     if (edge.directionType === 'one-way') {
-      const angle = Math.atan2(
-        edge.to.position.y - edge.from.position.y,
-        edge.to.position.x - edge.from.position.x
-      )
+    
       ctx.beginPath()
       ctx.moveTo(edge.from.position.x, edge.from.position.y)
       ctx.lineTo(edge.to.position.x - (nodeRadius + 10) * Math.cos(angle), edge.to.position.y - (nodeRadius + 10) * Math.sin(angle))
+      // @ts-expect-error
       ctx.strokeStyle = getValue(edgeColor, edge)
+      // @ts-expect-error
       ctx.lineWidth = getValue(edgeWeight, edge)
-      ctx.stroke()
       ctx.closePath()
+      ctx.stroke()
 
-      drawArrow(edge.to.position.x, edge.to.position.y, angle)
+
+      drawArrowHead(edge.to.position.x, edge.to.position.y, angle)
 
       const { x, y } = averageCoordsofTwoPoints(edge.from.position.x, edge.from.position.y, edge.to.position.x, edge.to.position.y)
+      
+      ctx.beginPath()
+      // @ts-expect-error
+      ctx.arc(x - Math.cos(angle) * 20, y - Math.sin(angle) * 20, getValue(edgeTextSize, edge), 0, Math.PI * 2)
+      ctx.fillStyle = getValue(canvasColor)
+      ctx.fill()
+      ctx.closePath()
+      // @ts-expect-error
       ctx.fillStyle = getValue(edgeTextColor, edge)
+      // @ts-expect-error
       ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
       ctx.textAlign = 'center'
-      ctx.fillText(`${edge.weight}`, x, y)
+      ctx.fillText(`${edge.weight}`, x - Math.cos(angle) * 20, y - Math.sin(angle) * 20 + 5)
 
     } else if (edge.directionType === 'both-ways') {
-      const angle = Math.atan2(
-        edge.to.position.y - edge.from.position.y,
-        edge.to.position.x - edge.from.position.x
-      )
+      
       const lineOffsetX = 20 * Math.cos(angle + Math.PI / 2)
       const lineOffsetY = 20 * Math.sin(angle + Math.PI / 2)
 
       ctx.beginPath()
       ctx.moveTo(edge.from.position.x + lineOffsetX, edge.from.position.y + lineOffsetY)
       ctx.lineTo(edge.to.position.x + lineOffsetX - (nodeRadius + 10) * Math.cos(angle), edge.to.position.y + lineOffsetY - (nodeRadius + 10) * Math.sin(angle))
-
+      // @ts-expect-error
       ctx.strokeStyle = getValue(edgeColor, edge)
+      // @ts-expect-error
       ctx.lineWidth = getValue(edgeWeight, edge)
       ctx.stroke()
       ctx.closePath()
 
-      const { x: x1, y: y1 } = averageCoordsofTwoPoints(edge.from.position.x + lineOffsetX, edge.from.position.y + lineOffsetY, edge.to.position.x + lineOffsetX - (nodeRadius + 10) * Math.cos(angle), edge.to.position.y + lineOffsetY - (nodeRadius + 10) * Math.sin(angle))
+      drawArrowHead(edge.to.position.x + lineOffsetX, edge.to.position.y + lineOffsetY, angle)
 
+      const { x, y } = averageCoordsofTwoPoints(edge.from.position.x + lineOffsetX, edge.from.position.y + lineOffsetY, edge.to.position.x + lineOffsetX - (nodeRadius + 10) * Math.cos(angle), edge.to.position.y + lineOffsetY - (nodeRadius + 10) * Math.sin(angle))
+      ctx.beginPath()
+      // @ts-expect-error
+      ctx.arc(x - Math.cos(angle) * -20, y - Math.sin(angle) * -20, getValue(edgeTextSize, edge), 0, Math.PI * 2)
+      ctx.fillStyle = getValue(canvasColor)
+      ctx.fill()
+      ctx.closePath()
+      // @ts-expect-error
       ctx.fillStyle = getValue(edgeTextColor, edge)
       ctx.textAlign = 'center'
+      // @ts-expect-error
       ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
-      ctx.fillText(`${edge.weight}`, x1, y1)
-
-      drawArrow(edge.to.position.x + lineOffsetX, edge.to.position.y + lineOffsetY, angle)
-      // TODO: customize as option
+      ctx.fillText(`${edge.weight}`, x - Math.cos(angle) * -20, y - Math.sin(angle) * -20 + 5)
 
     } else {
       ctx.beginPath()
       ctx.moveTo(edge.from.position.x, edge.from.position.y)
       ctx.lineTo(edge.to.position.x, edge.to.position.y)
+      // @ts-expect-error
       ctx.strokeStyle = getValue(edgeColor, edge)
+      // @ts-expect-error
       ctx.lineWidth = getValue(edgeWeight, edge)
       ctx.stroke()
       ctx.closePath()
 
       const { x, y } = averageCoordsofTwoPoints(edge.from.position.x, edge.from.position.y, edge.to.position.x, edge.to.position.y)
+
+      ctx.beginPath()
+      // @ts-expect-error
+      ctx.arc(x, y, getValue(edgeTextSize, edge), 0, Math.PI * 2)
+      ctx.fillStyle = getValue(canvasColor)
+      ctx.fill()
+      ctx.closePath()
+      // @ts-expect-error
       ctx.fillStyle = getValue(edgeTextColor, edge)
       ctx.textAlign = 'center'
+      // @ts-expect-error
       ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
-      ctx.fillText(`${edge.weight}`, x, y)
+      ctx.fillText(`${edge.weight}`, x, y + 5)
     }
   }
 
   const drawNode = (ctx: CanvasRenderingContext2D, node: GraphNode) => {
     ctx.beginPath()
+    // @ts-expect-error
     ctx.arc(node.position.x, node.position.y, nodeRadius - getValue(nodeBorderWeight, node), 0, Math.PI * 2)
+    // @ts-expect-error
     ctx.fillStyle = getValue(nodeColor, node)
     ctx.fill()
     ctx.closePath()
+    // @ts-expect-error
     ctx.strokeStyle = getValue(nodeBorderColor, node)
+    // @ts-expect-error
     ctx.lineWidth = getValue(nodeBorderWeight, node)
     ctx.stroke()
     ctx.closePath()
+    // @ts-expect-error
     ctx.fillStyle = getValue(nodeTextColor, node)
     ctx.textAlign = 'center'
+    // @ts-expect-error
     ctx.font = `${getValue(nodeTextSize, node)}px Arial`
     ctx.fillText(`${node.id}`, node.position.x, node.position.y + 5)
   }
