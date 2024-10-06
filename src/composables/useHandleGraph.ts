@@ -149,6 +149,13 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
     edges.splice(edgeIndex, 1)
   }
 
+  const updateEdgeWeight = (fromId: number, toId: number, weight: number) => {
+    const edge = edges.find(edge => (
+      getEdgeId(fromId, toId) === edge.id
+    ))
+    if (edge) edge.weight = weight
+  }
+
   const updateEdgeType = (fromId: number, toId: number, currentEdgeType: DirectionType) => {
     const edge = edges.find(edge => (
       getEdgeId(fromId, toId) === edge.id
@@ -467,23 +474,29 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
     const mouseY = event.offsetY
 
     const clickedEdgeWeight = edges.findIndex(edge => {
+      const angle = Math.atan2(
+        edge.to.position.y - edge.from.position.y,
+        edge.to.position.x - edge.from.position.x
+      )
       if (edge.directionType === 'both-ways') {
-        const angle = Math.atan2(
-          edge.to.position.y - edge.from.position.y,
-          edge.to.position.x - edge.from.position.x
-        )
-        // TODO: need to separate the two-way edge into two edges. make sure they are always differentiable
+// for some reason clicking this one selects the other one's edge
         const lineOffsetX = 20 * Math.cos(angle + Math.PI / 2)
         const lineOffsetY = 20 * Math.sin(angle + Math.PI / 2)
         const { x: x1, y: y1 } = averageCoordsofTwoPoints(edge.from.position.x + lineOffsetX, edge.from.position.y + lineOffsetY, edge.to.position.x + lineOffsetX - (nodeRadius + 10) * Math.cos(angle), edge.to.position.y + lineOffsetY - (nodeRadius + 10) * Math.sin(angle))
         const { x: x2, y: y2 } = averageCoordsofTwoPoints(edge.from.position.x - lineOffsetX + (nodeRadius + 10) * Math.cos(angle), edge.from.position.y - lineOffsetY + (nodeRadius + 10) * Math.sin(angle), edge.to.position.x - lineOffsetX, edge.to.position.y - lineOffsetY)
-        const dx1 = mouseX - x1
-        const dy1 = mouseY - y1
+        const dx1 = mouseX - x1 - Math.cos(angle) * -20
+        const dy1 = mouseY - y1 - Math.sin(angle) * -20 + 5
         const distanceSquared1 = dx1 * dx1 + dy1 * dy1
-        const dx2 = mouseX - x2
-        const dy2 = mouseY - y2
+        const dx2 = mouseX - x2 - Math.cos(angle) * -20
+        const dy2 = mouseY - y2 - Math.sin(angle) * -20 + 5
         const distanceSquared2 = dx2 * dx2 + dy2 * dy2
         return distanceSquared1 < getValue(edgeTextSize) ** 2 || distanceSquared2 < getValue(edgeTextSize) ** 2
+      } else if (edge.directionType === 'one-way') {
+        const { x, y } = averageCoordsofTwoPoints(edge.from.position.x, edge.from.position.y, edge.to.position.x, edge.to.position.y)
+        const dx = mouseX - x - Math.cos(angle) * -20
+        const dy = mouseY - y - Math.sin(angle) * -20 + 5
+        const distanceSquared = dx * dx + dy * dy
+        return distanceSquared < getValue(edgeTextSize) ** 2
       } else {
         const { x, y } = averageCoordsofTwoPoints(edge.from.position.x, edge.from.position.y, edge.to.position.x, edge.to.position.y)
         const dx = mouseX - x
@@ -495,14 +508,42 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
 
     if (clickedEdgeWeight !== -1 && !isDragging.value) {
       edgeOfClickedWeight.value = getEdges.value[clickedEdgeWeight]
-      // const inputElement = document.createElement('div')
-      // inputElement.style.position = 'absolute'
-      // inputElement.style.left = `${mouseX}px`
-      // inputElement.style.top = `${mouseY}px`
-      // inputElement.innerHTML = `<input type="number" :v-model="${getEdges.value[clickedEdgeWeight].weight}" />`
+      const inputElement = document.createElement('div')
+      inputElement.style.position = 'absolute'
+      inputElement.style.left = `${mouseX}px`
+      inputElement.style.top = `${mouseY}px`
+      // remove the arrows!!!!!
+      // also moving the mouse causes the box to move. it thinks there are clicks??
+      inputElement.innerHTML = `<input type="number" style="background-color: ${getValue(canvasColor)}; width: 40px; border: none; -webkit-appearance: none; -moz-appearance: textfield;" />`
 
-      // const container = document.getElementById('dynamic-input-container')
-      // if (container) container.appendChild(inputElement)
+      const input = inputElement.querySelector('input')
+      
+      if (input) {
+        input.value = `${edgeOfClickedWeight.value.weight}`
+
+        input.addEventListener('blur', () => {
+          if (edgeOfClickedWeight.value) {
+            updateEdgeWeight(edgeOfClickedWeight.value.from.id, edgeOfClickedWeight.value.to.id, parseFloat(input.value))
+          }
+          container?.removeChild(inputElement)
+        })
+        input.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            input.blur()
+          }
+          if (event.key === 'Escape') { 
+            input.value = `${edgeOfClickedWeight.value?.weight}`
+            input.blur()
+          }
+        })
+      }
+
+
+      const container = document.getElementById('dynamic-input-container')
+      if (container) container.appendChild(inputElement)
+
+      input?.focus()
+      input?.select()
 
     } else {
       edgeOfClickedWeight.value = null
