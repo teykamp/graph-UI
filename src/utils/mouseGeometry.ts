@@ -33,8 +33,8 @@ export const distanceToLineSquared = (x1: number, y1: number, x2: number, y2: nu
 
 export const averageCoordsofTwoPoints = (x1: number, y1: number, x2: number, y2: number) => {
   return {
-    x: (x1 + x2) / 2,
-    y: (y1 + y2) / 2
+    x: Math.round((x1 + x2) / 2),
+    y: Math.round((y1 + y2) / 2)
   }
 }
 
