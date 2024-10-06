@@ -513,7 +513,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       inputElement.style.top = `${mouseY}px`
       // remove the arrows!!!!!
       // also moving the mouse causes the box to move. it thinks there are clicks??
-      inputElement.innerHTML = `<input type="number" style="background-color: ${getValue(canvasColor)}; width: 40px; border: none; -webkit-appearance: none; -moz-appearance: textfield;" />`
+      inputElement.innerHTML = `<input style="background-color: ${getValue(canvasColor)}; width: 40px; border: none; -webkit-appearance: none; -moz-appearance: textfield;" />`
 
       const input = inputElement.querySelector('input')
       
