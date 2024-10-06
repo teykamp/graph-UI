@@ -240,7 +240,6 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
 
   const drawEdge = (ctx: CanvasRenderingContext2D, edge: Edge) => {
 
-    // TODO: makeedge 2 lines with space for number in middle
     const drawArrowHead = (x: number, y: number, angle: number) => {
       const arrowOffsetX = x - nodeRadius * Math.cos(angle)
       const arrowOffsetY = y - nodeRadius * Math.sin(angle)
@@ -295,7 +294,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       // @ts-expect-error
       ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
       ctx.textAlign = 'center'
-      ctx.fillText(`${edge.weight}`, x - Math.cos(angle) * 20, y - Math.sin(angle) * 20 + 5)
+      ctx.fillText(`${Math.round(edge.weight*10)/10}`, x - Math.cos(angle) * 20, y - Math.sin(angle) * 20 + 5)
 
     } else if (edge.directionType === 'both-ways') {
       
@@ -326,7 +325,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.textAlign = 'center'
       // @ts-expect-error
       ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
-      ctx.fillText(`${edge.weight}`, x - Math.cos(angle) * -20, y - Math.sin(angle) * -20 + 5)
+      ctx.fillText(`${Math.round(edge.weight*10)/10}`, x - Math.cos(angle) * -20, y - Math.sin(angle) * -20 + 5)
 
     } else {
       ctx.beginPath()
@@ -352,7 +351,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.textAlign = 'center'
       // @ts-expect-error
       ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
-      ctx.fillText(`${edge.weight}`, x, y + 5)
+      ctx.fillText(`${Math.round(edge.weight*10)/10}`, x, y + 5)
     }
   }
 
