@@ -385,6 +385,12 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
     ctx.lineWidth = getValue(edgeWeight)
     ctx.stroke()
     ctx.closePath()
+
+    ctx.beginPath()
+    ctx.arc(draggingMiniNodeData.value!.mousePosition.x, draggingMiniNodeData.value!.mousePosition.y, miniNodeRadius, 0, Math.PI * 2)
+    ctx.fillStyle = getValue(miniNodeColor)
+    ctx.fill()
+    ctx.closePath()
   }
 
 
