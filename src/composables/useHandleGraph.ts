@@ -207,10 +207,6 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
 
     ctx.clearRect(0, 0, width, height)
 
-    if (draggingMiniNode.value) {
-      drawAddNewEdgeWithMiniNode(ctx)
-    }
-
     getEdges.value.forEach(edge => {
       drawEdge(ctx, edge)
     })
@@ -221,6 +217,10 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
 
     if (hoveredNode.value && !isDragging.value) {
       drawMiniNodes(ctx, hoveredNode.value.position.x, hoveredNode.value.position.y)
+    }
+
+    if (draggingMiniNode.value) {
+      drawAddNewEdgeWithMiniNode(ctx)
     }
   }
 
@@ -391,6 +391,9 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
     ctx.fillStyle = getValue(miniNodeColor)
     ctx.fill()
     ctx.closePath()
+
+    drawNode(ctx, draggingMiniNodeData.value!.origin)
+
   }
 
 
