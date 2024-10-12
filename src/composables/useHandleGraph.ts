@@ -266,7 +266,62 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       edge.to.position.x - edge.from.position.x
     )
 
-    if (edge.directionType === 'one-way') {
+
+    if (edge.from === edge.to) {
+      const rotatePoint = (x: number, y: number, cx: number, cy: number, angle: number) => {
+        const cosA = Math.cos(angle)
+        const sinA = Math.sin(angle)
+        const dx = x - cx
+        const dy = y - cy
+
+        return {
+          x: cx + (dx * cosA - dy * sinA),
+          y: cy + (dx * sinA + dy * cosA)
+        }
+      }
+
+      
+      const lineSpacing = 40
+      const lineLength = 150
+      
+      const p1 = rotatePoint(edge.from.position.x, edge.from.position.y - lineSpacing / 2, edge.from.position.x, edge.from.position.y, angle)
+      const p2 = rotatePoint(edge.from.position.x + lineLength / 2, edge.from.position.y - lineSpacing / 2, edge.from.position.x, edge.from.position.y, angle)
+      
+      const p3 = rotatePoint(edge.from.position.x + 60, edge.from.position.y + lineSpacing / 2, edge.from.position.x, edge.from.position.y, angle)
+      const p4 = rotatePoint(edge.from.position.x + lineLength / 2, edge.from.position.y + lineSpacing / 2, edge.from.position.x, edge.from.position.y, angle)
+      
+      const arcCenter = rotatePoint(edge.from.position.x + lineLength / 2, edge.from.position.y, edge.from.position.x, edge.from.position.y, angle)
+      
+      ctx.beginPath()
+      ctx.moveTo(p1.x, p1.y)
+      ctx.lineTo(p2.x, p2.y)
+
+      ctx.moveTo(p3.x, p3.y)
+      ctx.lineTo(p4.x, p4.y)
+
+      ctx.arc(arcCenter.x, arcCenter.y, lineSpacing / 2, Math.PI / 2 + angle, -Math.PI / 2 + angle, true)
+      // @ts-expect-error
+      ctx.strokeStyle = getValue(edgeColor, edge)
+      ctx.stroke()
+      ctx.closePath()
+      
+      drawArrowHead(p3.x - Math.cos(angle) * 70, p3.y - Math.sin(angle) * 70, angle - Math.PI)
+
+      ctx.beginPath()
+      // @ts-expect-error
+      ctx.arc(arcCenter.x + Math.cos(angle) * 20, arcCenter.y + Math.sin(angle) * 20, getValue(edgeTextSize, edge), 0, Math.PI * 2)
+      ctx.fillStyle = getValue(canvasColor)
+      ctx.fill()
+      ctx.closePath()
+      // @ts-expect-error
+      ctx.fillStyle = getValue(edgeTextColor, edge)
+      // @ts-expect-error
+      ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
+      ctx.textAlign = 'center'
+      ctx.fillText(`${Math.round(edge.weight * 10) / 10}`, arcCenter.x + Math.cos(angle) * 20, arcCenter.y + Math.sin(angle) * 20 + 5)
+    }
+
+    else if (edge.directionType === 'one-way') {
     
       ctx.beginPath()
       ctx.moveTo(edge.from.position.x, edge.from.position.y)
