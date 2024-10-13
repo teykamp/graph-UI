@@ -280,17 +280,52 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
         }
       }
 
-      
+      const calculateAngle = (x1: number, y1: number, x2: number, y2: number) => {
+        return Math.atan2(y2 - y1, x2 - x1)
+      }
+
+      const findLargestAngularSpace = (centerX: number, centerY: number, points: { x: number, y: number }[]) => {
+        if (points.length === 0) return 0
+        if (points.length === 1) return calculateAngle(centerX, centerY, points[0].x, points[0].y) + Math.PI
+
+        const angles = points.map(point => calculateAngle(centerX, centerY, point.x, point.y)).sort((a, b) => a - b)
+
+        let maxAngularDistance = 0
+        let maxAngularDistanceIndex = 0
+
+        for (let i = 0; i < angles.length; i++) {
+          const nextAngle = (i + 1) % angles.length
+          const angularDistance = (angles[nextAngle] - angles[i] + 2 * Math.PI) % (2 * Math.PI)
+          if (angularDistance > maxAngularDistance) {
+            maxAngularDistance = angularDistance
+            maxAngularDistanceIndex = i
+          }
+        }
+
+        const midpointAngleOfLargestAngularDistance = (angles[maxAngularDistanceIndex] + maxAngularDistance / 2) % (2 * Math.PI)
+        return midpointAngleOfLargestAngularDistance
+
+      }
+
+      const nonSelfEdgesIntoThisNode = getEdges.value.filter(e => (e.from.id === edge.from.id || e.to.id === edge.to.id) && e.from.id !== e.to.id)
+
+      const openSpaceAngle = findLargestAngularSpace(
+        edge.from.position.x, 
+        edge.from.position.y, 
+        nonSelfEdgesIntoThisNode
+          .map(e => {
+            return edge.from.id === e.from.id ? { x: e.to.position.x, y: e.to.position.y } : { x: e.from.position.x, y: e.from.position.y }
+          }))
       const lineSpacing = 40
       const lineLength = 150
       
-      const p1 = rotatePoint(edge.from.position.x, edge.from.position.y - lineSpacing / 2, edge.from.position.x, edge.from.position.y, angle)
-      const p2 = rotatePoint(edge.from.position.x + lineLength / 2, edge.from.position.y - lineSpacing / 2, edge.from.position.x, edge.from.position.y, angle)
+      const p1 = rotatePoint(edge.from.position.x, edge.from.position.y - lineSpacing / 2, edge.from.position.x, edge.from.position.y, openSpaceAngle)
+      const p2 = rotatePoint(edge.from.position.x + lineLength / 2, edge.from.position.y - lineSpacing / 2, edge.from.position.x, edge.from.position.y, openSpaceAngle)
       
-      const p3 = rotatePoint(edge.from.position.x + 60, edge.from.position.y + lineSpacing / 2, edge.from.position.x, edge.from.position.y, angle)
-      const p4 = rotatePoint(edge.from.position.x + lineLength / 2, edge.from.position.y + lineSpacing / 2, edge.from.position.x, edge.from.position.y, angle)
+      const p3 = rotatePoint(edge.from.position.x + 60, edge.from.position.y + lineSpacing / 2, edge.from.position.x, edge.from.position.y, openSpaceAngle)
+      const p4 = rotatePoint(edge.from.position.x + lineLength / 2, edge.from.position.y + lineSpacing / 2, edge.from.position.x, edge.from.position.y, openSpaceAngle)
       
-      const arcCenter = rotatePoint(edge.from.position.x + lineLength / 2, edge.from.position.y, edge.from.position.x, edge.from.position.y, angle)
+      const arcCenter = rotatePoint(edge.from.position.x + lineLength / 2, edge.from.position.y, edge.from.position.x, edge.from.position.y, openSpaceAngle)
       
       ctx.beginPath()
       ctx.moveTo(p1.x, p1.y)
@@ -299,17 +334,17 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       ctx.moveTo(p3.x, p3.y)
       ctx.lineTo(p4.x, p4.y)
 
-      ctx.arc(arcCenter.x, arcCenter.y, lineSpacing / 2, Math.PI / 2 + angle, -Math.PI / 2 + angle, true)
+      ctx.arc(arcCenter.x, arcCenter.y, lineSpacing / 2, Math.PI / 2 + openSpaceAngle, -Math.PI / 2 + openSpaceAngle, true)
       // @ts-expect-error
       ctx.strokeStyle = getValue(edgeColor, edge)
       ctx.stroke()
       ctx.closePath()
       
-      drawArrowHead(p3.x - Math.cos(angle) * 70, p3.y - Math.sin(angle) * 70, angle - Math.PI)
+      drawArrowHead(p3.x - Math.cos(openSpaceAngle) * 70, p3.y - Math.sin(openSpaceAngle) * 70, openSpaceAngle - Math.PI)
 
       ctx.beginPath()
       // @ts-expect-error
-      ctx.arc(arcCenter.x + Math.cos(angle) * 20, arcCenter.y + Math.sin(angle) * 20, getValue(edgeTextSize, edge), 0, Math.PI * 2)
+      ctx.arc(arcCenter.x + Math.cos(openSpaceAngle) * 20, arcCenter.y + Math.sin(openSpaceAngle) * 20, getValue(edgeTextSize, edge), 0, Math.PI * 2)
       ctx.fillStyle = getValue(canvasColor)
       ctx.fill()
       ctx.closePath()
@@ -318,7 +353,7 @@ const useGraph = (canvas: Ref<HTMLCanvasElement | null>, options: GraphOptions =
       // @ts-expect-error
       ctx.font = `${getValue(edgeTextSize, edge)}px Arial`
       ctx.textAlign = 'center'
-      ctx.fillText(`${Math.round(edge.weight * 10) / 10}`, arcCenter.x + Math.cos(angle) * 20, arcCenter.y + Math.sin(angle) * 20 + 5)
+      ctx.fillText(`${Math.round(edge.weight * 10) / 10}`, arcCenter.x + Math.cos(openSpaceAngle) * 20, arcCenter.y + Math.sin(openSpaceAngle) * 20 + 5)
     }
 
     else if (edge.directionType === 'one-way') {
